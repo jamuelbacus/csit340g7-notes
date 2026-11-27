@@ -10,6 +10,8 @@ const startingFormData = {
 
 function Notes() {
   const [notes, setNotes] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState("");
   const [formData, setFormData] = useState(() => {
     const saved = localStorage.getItem("draft");
     return saved ? JSON.parse(saved) : startingFormData;
@@ -20,13 +22,30 @@ function Notes() {
   const titleRef = useRef(null);
 
   useEffect(() => {
+    let ignore = false;
+
     async function loadNotes() {
-      const res = await fetch(API_URL + "/notes");
-      const data = await res.json();
-      setNotes(data);
+      try {
+        const res = await fetch(API_URL + "/notes");
+
+        if (!res.ok) {
+          throw new Error("The server answered " + res.status);
+        }
+
+        const data = await res.json();
+
+        if (!ignore) setNotes(data);
+      } catch (err) {
+        if (!ignore) setError(err.message);
+      }
+
+      if (!ignore) setLoading(false);
     }
 
     loadNotes();
+    return () => {
+      ignore = true;
+    };
   }, []);
 
   useEffect(() => {
@@ -143,9 +162,15 @@ function Notes() {
       <section className="px-12 py-11">
         <h2 className="mb-6 text-3xl">All notes</h2>
 
-        {filteredNotes.length === 0 ? (
+        {loading && <p className="text-lg text-[#949494]">Loading notes...</p>}
+
+        {error && <p className="text-lg text-[#b83f45]">{error}</p>}
+
+        {!loading && !error && filteredNotes.length === 0 && (
           <p className="text-lg text-[#949494]">No notes found</p>
-        ) : (
+        )}
+
+        {!loading && !error && filteredNotes.length > 0 && (
           <ul className="grid grid-cols-3 items-start gap-5">
             {filteredNotes.map((note) => (
               <li
